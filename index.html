@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Warm Earth Tones -->
-    <!-- Application Structure Plan: A dashboard-style, single-page application centered around a dynamic filtering system. The core idea is to move away from the linear report structure and empower users to build their own daily plans. The key components are: 1) A sticky filter bar at the top for Activity Type, Suitability, and Driving Time. 2) A responsive grid of cards, where each card represents an activity/place. 3) A modal view for detailed information to keep the interface clean. 4) Static sections for essential info (logistics) and visual data summaries (charts). This structure was chosen because it directly addresses the user's need for flexibility, allowing them to query the available options based on their immediate context (e.g., "what's a close, easy activity for everyone right now?") rather than scrolling through a fixed document. -->
+    <!-- Application Structure Plan: A dashboard-style, single-page application centered around a dynamic filtering system. The core idea is to move away from the linear report structure and empower users to build their own daily plans. The key components are: 1) A filter bar at the top for Activity Type, Suitability, and Driving Time. 2) A responsive grid of cards, where each card represents an activity/place. 3) A modal view for detailed information to keep the interface clean. 4) Static sections for essential info (logistics) and visual data summaries (charts). This structure was chosen because it directly addresses the user's need for flexibility, allowing them to query the available options based on their immediate context (e.g., "what's a close, easy activity for everyone right now?") rather than scrolling through a fixed document. -->
     <!-- Visualization & Content Choices: 1) Hikes Comparison: Report Info -> Hike stats (duration, elevation). Goal -> Compare. Viz -> Horizontal Bar Chart (Chart.js). Interaction -> Visual comparison. Justification -> Allows the "adventurous pair" to quickly gauge the difficulty of their options. 2) Day Trip Drive Times: Report Info -> Driving times to towns. Goal -> Compare. Viz -> Bar Chart (Chart.js). Interaction -> Visual comparison. Justification -> Provides an at-a-glance overview of travel commitments for planning. 3) Activity Cards: Report Info -> All individual recommendations. Goal -> Organize/Inform. Method -> HTML/CSS cards. Interaction -> Filtering via JS, modal for details. Justification -> Breaks down all information into digestible, filterable chunks, which is the core of the app's usability. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
@@ -65,12 +65,6 @@
                 height: 350px;
             }
         }
-        .sticky-nav {
-            position: -webkit-sticky;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
     </style>
 </head>
 <body class="antialiased">
@@ -87,7 +81,7 @@
             <p class="text-gray-700">This interactive guide is designed to help you flexibly explore the best of the Valle dei Laghi. Use the filters below to find the perfect activity for any moment of your vacation, whether it's a relaxing family walk, a more challenging hike, or a delicious local dinner. Select a category, group type, and driving distance to customize the suggestions and create your ideal day.</p>
         </section>
 
-        <nav id="filters" class="sticky-nav bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-4 mb-8">
+        <nav id="filters" class="bg-white rounded-xl shadow-lg p-4 mb-8">
             <div class="space-y-4">
                 <div>
                     <h3 class="font-semibold mb-2 text-gray-700">Filter by Activity</h3>
@@ -234,7 +228,7 @@
                 category: 'walk',
                 suitability: 'adventurous',
                 drive: 30,
-                icon: '🌿',
+                icon: '�',
                 summary: 'A beautiful loop through the historic olive groves above Arco with magnificent castle views.',
                 details: `
                     <p>This beautiful loop hike immerses hikers in the ancient agricultural landscape that defines Arco. The trail winds through the historic olive groves on the sunny slopes above the town. The full circuit is 9.4 km, taking about 3.5 hours with an elevation gain of 508 m. A shortcut is available for a shorter 5 km loop (2 hours, 175 m elevation gain).</p>
@@ -577,3 +571,4 @@
     </script>
 </body>
 </html>
+�
