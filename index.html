@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Itinerary: Valle dei Laghi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Earth Tones -->
+    <!-- Application Structure Plan: A dashboard-style, single-page application centered around a dynamic filtering system. The core idea is to move away from the linear report structure and empower users to build their own daily plans. The key components are: 1) A sticky filter bar at the top for Activity Type, Suitability, and Driving Time. 2) A responsive grid of cards, where each card represents an activity/place. 3) A modal view for detailed information to keep the interface clean. 4) Static sections for essential info (logistics) and visual data summaries (charts). This structure was chosen because it directly addresses the user's need for flexibility, allowing them to query the available options based on their immediate context (e.g., "what's a close, easy activity for everyone right now?") rather than scrolling through a fixed document. -->
+    <!-- Visualization & Content Choices: 1) Hikes Comparison: Report Info -> Hike stats (duration, elevation). Goal -> Compare. Viz -> Horizontal Bar Chart (Chart.js). Interaction -> Visual comparison. Justification -> Allows the "adventurous pair" to quickly gauge the difficulty of their options. 2) Day Trip Drive Times: Report Info -> Driving times to towns. Goal -> Compare. Viz -> Bar Chart (Chart.js). Interaction -> Visual comparison. Justification -> Provides an at-a-glance overview of travel commitments for planning. 3) Activity Cards: Report Info -> All individual recommendations. Goal -> Organize/Inform. Method -> HTML/CSS cards. Interaction -> Filtering via JS, modal for details. Justification -> Breaks down all information into digestible, filterable chunks, which is the core of the app's usability. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9F5F0;
+            color: #4A4A4A;
+        }
+        .filter-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .filter-button.active {
+            background-color: #8FBC8F;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            visibility: visible;
+            opacity: 1;
+            height: auto;
+            transform: scale(1);
+            transition: opacity 0.5s, transform 0.5s, height 0.5s, margin 0.5s, padding 0.5s;
+        }
+        .card.hidden {
+            opacity: 0;
+            transform: scale(0.9);
+            height: 0;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            border: none;
+        }
+        .modal {
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .sticky-nav {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Interactive Itinerary</h1>
+            <p class="text-lg text-gray-600 mt-2">Your Guide to the Valley of Lakes</p>
+        </header>
+
+        <section id="intro" class="mb-12 bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Welcome to Trentino!</h2>
+            <p class="text-gray-700">This interactive guide is designed to help you flexibly explore the best of the Valle dei Laghi. Use the filters below to find the perfect activity for any moment of your vacation, whether it's a relaxing family walk, a more challenging hike, or a delicious local dinner. Select a category, group type, and driving distance to customize the suggestions and create your ideal day.</p>
+        </section>
+
+        <nav id="filters" class="sticky-nav bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-4 mb-8">
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold mb-2 text-gray-700">Filter by Activity</h3>
+                    <div id="category-filters" class="flex flex-wrap gap-2">
+                        <button data-filter="all" class="filter-button active px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">All</button>
+                        <button data-filter="walk" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Walks</button>
+                        <button data-filter="trip" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Trips</button>
+                        <button data-filter="food" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Food</button>
+                        <button data-filter="culture" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Culture</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-semibold mb-2 text-gray-700">For Whom</h3>
+                        <div id="suitability-filters" class="flex flex-wrap gap-2">
+                            <button data-filter="all" class="filter-button active px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Everyone</button>
+                            <button data-filter="family" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Family/Stroller</button>
+                            <button data-filter="adventurous" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">Adventurous</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2 text-gray-700">Driving Distance</h3>
+                        <div id="drive-filters" class="flex flex-wrap gap-2">
+                            <button data-filter="all" class="filter-button active px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">All</button>
+                            <button data-filter="15" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">&lt; 15 min</button>
+                            <button data-filter="30" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">15-30 min</button>
+                            <button data-filter="60" class="filter-button px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-sm font-medium">30-60 min</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main id="card-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        </main>
+        
+        <section id="charts" class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Visual Overview</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-center mb-4">Hike Comparison (Adventurous)</h3>
+                    <div class="chart-container">
+                        <canvas id="hikesChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-center mb-4">Day Trip Driving Times</h3>
+                    <div class="chart-container">
+                        <canvas id="drivesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="logistics" class="mt-12 bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Essential Logistics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Supermarkets</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>Ipercoop/Spazio Conad (Rovereto Sud):</strong> Ideal for the big initial stock-up, at the A22 motorway exit.</li>
+                        <li><strong>Conad City (Cavedine):</strong> For daily needs, at Via Don Negri 24. Closes for lunch.</li>
+                        <li><strong>Famiglia Cooperativa (Vigo Cavedine):</strong> Also offers home delivery.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Bakeries</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>Panificio Tecchiolli (Cavedine):</strong> The most convenient for fresh morning bread.</li>
+                        <li><strong>Panificio Moderno (Trento):</strong> Renowned for high-quality artisanal products.</li>
+                        <li><strong>Il Forno dei Sapori (Arco):</strong> Celebrated for its leavened goods.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4">
+        <div id="modal-content" class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 transform scale-95">
+            <div class="flex justify-between items-start">
+                <h2 id="modal-title" class="text-2xl md:text-3xl font-bold text-gray-800 mb-4"></h2>
+                <button id="modal-close" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div id="modal-body" class="prose max-w-none text-gray-700"></div>
+        </div>
+    </div>
+
+    <script>
+        const data = [
+            {
+                title: 'Lake Toblino Loop',
+                category: 'walk',
+                suitability: 'family',
+                drive: 15,
+                icon: '🌳',
+                summary: 'The quintessential family walk, flat and featuring a splendid wooden boardwalk over the lake.',
+                details: `
+                    <p>This is the quintessential family trail in the valley, combining breathtaking scenery with exceptional accessibility. The full loop around the lake is about 8 km and takes about two hours on an almost entirely flat path. The route is described as fully accessible with a stroller and features a beautiful wooden boardwalk that extends over the water, offering intimate views of the romantic Toblino Castle.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Start:</strong> Parking at "Due Laghi" in Padergnone.</li>
+                        <li><strong>Refreshments:</strong> Bar Castel Toblino along the route.</li>
+                        <li><strong>Accessibility:</strong> Excellent for strollers.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Lake Cavedine Eastern Shore',
+                category: 'walk',
+                suitability: 'family',
+                drive: 15,
+                icon: '💧',
+                summary: 'Flexible and scenic walk along the crystal-clear water, perfect for strollers.',
+                details: `
+                    <p>The path along the eastern shore of Lake Cavedine offers a wonderfully flexible and scenic outing. This stretch is part of a larger 7.8 km loop around the lake but can easily be enjoyed as a shorter out-and-back walk. The path is a mix of a pedestrian path and a dedicated cycle track, running directly alongside the crystal-clear water with minimal elevation gain. The wide, open path is perfect for a stroller.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Parking:</strong> Free at the small harbor on the eastern shore of the lake.</li>
+                        <li><strong>Landmark:</strong> The Lido Paradise on this shore is a perfect destination or turnaround point, with a large park and a café.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Bastione & Santa Barbara Church',
+                category: 'walk',
+                suitability: 'adventurous',
+                drive: 30,
+                icon: '⛰️',
+                summary: 'Iconic hike from Riva del Garda with breathtaking lake views for a moderate effort.',
+                details: `
+                    <p>This iconic hike offers an immense panoramic reward for a moderate effort. The trail ascends from the town of Riva del Garda (88m) to the small white church of Santa Barbara (619m). The total round-trip time is about 2 hours. The first part of the climb to the Bastione fortress is on a wide, well-maintained path. Beyond the Bastione, the trail becomes a steeper, more rugged dirt path.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Start:</strong> Trail SAT 404 from Via Monte Oro in Riva del Garda.</li>
+                        <li><strong>Duration:</strong> 2 hours.</li>
+                        <li><strong>Elevation Gain:</strong> 531 m.</li>
+                        <li><strong>Tip:</strong> Very exposed to the sun, best undertaken early in the morning in summer.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'The Olive Path',
+                category: 'walk',
+                suitability: 'adventurous',
+                drive: 30,
+                icon: '🌿',
+                summary: 'A beautiful loop through the historic olive groves above Arco with magnificent castle views.',
+                details: `
+                    <p>This beautiful loop hike immerses hikers in the ancient agricultural landscape that defines Arco. The trail winds through the historic olive groves on the sunny slopes above the town. The full circuit is 9.4 km, taking about 3.5 hours with an elevation gain of 508 m. A shortcut is available for a shorter 5 km loop (2 hours, 175 m elevation gain).</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Start:</strong> Arco, convenient parking at Caneve.</li>
+                        <li><strong>Duration:</strong> 2 - 3.5 hours.</li>
+                        <li><strong>Elevation Gain:</strong> 175 m / 508 m.</li>
+                        <li><strong>Difficulty:</strong> Medium.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Riva del Garda',
+                category: 'trip',
+                suitability: 'family',
+                drive: 30,
+                icon: '⛵',
+                summary: 'The pearl of the lake, with a vibrant atmosphere and a splendid lakeside promenade perfect for strollers.',
+                details: `
+                    <p>The largest town on the northern shore of Lake Garda, Riva del Garda combines a vibrant, sophisticated atmosphere with a breathtaking natural setting. The most attractive feature for a family is its extensive lakeside promenade. A wide, flat walk, lined with manicured lawns and shady trees, is perfect for a stroll with a stroller. For a spectacular and easily accessible view, take the panoramic lift up to the Bastione di Riva.</p>
+                `
+            },
+            {
+                title: 'Arco',
+                category: 'trip',
+                suitability: 'family',
+                drive: 30,
+                icon: '🏰',
+                summary: 'A town with historical charm, dominated by a spectacular castle and with a relaxed atmosphere.',
+                details: `
+                    <p>Internationally renowned as a climbing mecca, Arco has a relaxed, sporty atmosphere. The main attraction is Arco Castle. A scenic path climbs from the town, passing through ancient olive groves before reaching the ruins of the medieval castle at the top. The path is cobbled and can be steep, so a baby carrier is necessary. For a quieter, stroller-friendly experience, the Arboretum of Arco offers a peaceful oasis.</p>
+                `
+            },
+            {
+                title: 'Trento',
+                category: 'trip',
+                suitability: 'family',
+                drive: 30,
+                icon: '🏛️',
+                summary: 'Elegant alpine capital, rich in art, history, and with a flat, pedestrian-friendly historic center.',
+                details: `
+                    <p>Trento is a city of art and history, where Italian Renaissance elegance meets an Alpine sensibility. Its historic center is compact, largely pedestrian, and perfectly flat, ideal for exploring with a stroller. The heart of the city is Piazza Duomo. For a modern and highly engaging experience, the MUSE - Science Museum, designed by Renzo Piano, is a must-visit. Its interactive exhibits are fascinating for all ages, and the building is fully accessible.</p>
+                `
+            },
+            {
+                title: 'Canale di Tenno',
+                category: 'trip',
+                suitability: 'family',
+                drive: 60,
+                icon: '🏘️',
+                summary: 'A perfectly preserved medieval village, a true journey back in time.',
+                details: `
+                    <p>For a trip back in time, a visit to Canale di Tenno is essential. It is officially recognized as one of "Italy's Most Beautiful Villages." Canale di Tenno is a perfectly preserved hamlet of stone houses, vaulted passages, and narrow cobbled streets. A visit here can be combined with a stop at the nearby Lake Tenno, a small alpine lake famous for its surreal turquoise waters. Due to the uneven surfaces and stairs, a baby carrier is strongly recommended over a stroller.</p>
+                `
+            },
+            {
+                title: 'Pizzeria Ristorante Genzianella',
+                category: 'food',
+                suitability: 'family',
+                drive: 15,
+                icon: '🍕',
+                summary: 'Family-run pizzeria with excellent pizzas, a panoramic terrace, and a children\'s play area.',
+                details: `
+                    <p>Family-run, welcoming, with a beautiful outdoor terrace and mountain views. It offers exceptional pizzas with an extensive menu and traditional Italian dishes. It has a dedicated outdoor play area for children, perfect for families.</p>
+                    <h4>Info:</h4>
+                    <ul>
+                        <li><strong>Location:</strong> Cavedine (~5 min)</li>
+                        <li><strong>Cuisine:</strong> Pizza, Italian</li>
+                        <li><strong>Vegetarian:</strong> Yes, good options available.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Antica Trattoria Due Mori',
+                category: 'food',
+                suitability: 'family',
+                drive: 30,
+                icon: '🍝',
+                summary: 'Historic trattoria in Trento for an authentic, high-quality Trentino dinner.',
+                details: `
+                    <p>Historic, part of the "Osterie Tipiche Trentine" group, with outdoor seating. It offers authentic, high-quality Trentino cuisine, with a dedicated selection of vegetarian dishes on the menu.</p>
+                    <h4>Info:</h4>
+                    <ul>
+                        <li><strong>Location:</strong> Trento (~25 min)</li>
+                        <li><strong>Cuisine:</strong> Traditional Trentino</li>
+                        <li><strong>Vegetarian:</strong> Yes, dedicated selection.</li>
+                        <li><strong>Note:</strong> Booking is mandatory.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Bio Essere',
+                category: 'food',
+                suitability: 'family',
+                drive: 30,
+                icon: '🥗',
+                summary: 'Organic and vegetarian restaurant in Arco, perfect for a healthy, quick, and tasty lunch.',
+                details: `
+                    <p>Modern and informal buffet-style restaurant with a focus on health. It offers organic, vegetarian, and vegan dishes. Excellent for a quick, healthy, and flavorful lunch. You pay by weight.</p>
+                    <h4>Info:</h4>
+                    <ul>
+                        <li><strong>Location:</strong> Arco (~20 min)</li>
+                        <li><strong>Cuisine:</strong> Vegetarian/Vegan</li>
+                        <li><strong>Vegetarian:</strong> Exclusively.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Drena Castle',
+                category: 'culture',
+                suitability: 'family',
+                drive: 15,
+                icon: '🛡️',
+                summary: 'A fascinating medieval fortress to explore freely, with panoramic views from the tower.',
+                details: `
+                    <p>Perched on a rocky spur, Drena Castle is a classic medieval fortress. Visitors can freely explore the outer walls, the inner courtyard, and the keep. The climb to the 12th-century tower is rewarded with an imposing view of the valley. The walk from the parking lot is short but steep; a baby carrier is better than a stroller.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Summer Hours:</strong> Tue-Sun, 10:00 AM - 6:00 PM.</li>
+                        <li><strong>Ticket:</strong> €4.00 per adult.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Toblino Castle',
+                category: 'culture',
+                suitability: 'family',
+                drive: 15,
+                icon: '👑',
+                summary: 'Iconic and romantic castle on the lake, interior visitable only with pre-booked guided tours.',
+                details: `
+                    <p>Probably the most famous castle in Trentino, Toblino Castle enjoys an exceptionally romantic location on a small peninsula. The castle's exterior and the surrounding lakeside path are freely accessible. However, the castle itself is private property housing a luxury restaurant. Visiting the historic interior requires a more planned approach.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Interior Visit:</strong> Only via pre-booked guided tours. They are not held daily and require a minimum number of participants. It is essential to check the official website's calendar and book well in advance.</li>
+                    </ul>
+                `
+            },
+            {
+                title: 'Lake Garda Cruise',
+                category: 'trip',
+                suitability: 'family',
+                drive: 30,
+                icon: '🛳️',
+                summary: 'The most relaxing way to admire the majestic cliffs and villages of the lake. Suitable for all ages.',
+                details: `
+                    <p>The most relaxing way to experience the majestic northern end of Lake Garda is from the water. The public ferry service, Navigazione Laghi, operates frequent and reliable routes from the port of Riva del Garda to the picturesque towns of Limone sul Garda and Malcesine. A simple round trip, perhaps with a brief stop in Limone, makes for a perfect, unhurried outing suitable for all ages. The boats are spacious and suitable for families with a stroller.</p>
+                    <h4>Practical Details:</h4>
+                    <ul>
+                        <li><strong>Departure:</strong> Port of Riva del Garda.</li>
+                        <li><strong>Tickets:</strong> Can be purchased at the ticket office at the ferry terminal.</li>
+                    </ul>
+                `
+            }
+        ];
+
+        const cardGrid = document.getElementById('card-grid');
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalClose = document.getElementById('modal-close');
+
+        let filters = {
+            category: 'all',
+            suitability: 'all',
+            drive: 'all'
+        };
+
+        function renderCards() {
+            const filteredData = data.filter(item => {
+                const categoryMatch = filters.category === 'all' || item.category === filters.category;
+                const suitabilityMatch = filters.suitability === 'all' || item.suitability === filters.suitability || item.suitability === 'family';
+                
+                let driveMatch = false;
+                if (filters.drive === 'all') {
+                    driveMatch = true;
+                } else {
+                    const driveTime = parseInt(filters.drive);
+                    if (driveTime === 15) driveMatch = item.drive <= 15;
+                    else if (driveTime === 30) driveMatch = item.drive > 15 && item.drive <= 30;
+                    else if (driveTime === 60) driveMatch = item.drive > 30 && item.drive <= 60;
+                }
+                
+                return categoryMatch && suitabilityMatch && driveMatch;
+            });
+
+            cardGrid.innerHTML = '';
+            if(filteredData.length === 0) {
+                cardGrid.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-500 py-10">
+                    <p class="text-xl">No results found.</p>
+                    <p>Try adjusting the filters.</p>
+                </div>`;
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col';
+                card.innerHTML = `
+                    <div class="p-6 flex-grow">
+                        <div class="flex items-center mb-4">
+                            <span class="text-3xl mr-4">${item.icon}</span>
+                            <div>
+                                <div class="tracking-wide text-sm text-green-700 font-semibold">${item.title}</div>
+                                <p class="block mt-1 text-lg leading-tight font-medium text-black">${item.summary}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
+                        <span>🚗 ~${item.drive} min</span> | 
+                        <span>${item.suitability === 'family' ? '👨‍👩‍👧‍👦 Family' : '🥾 Adventurous'}</span>
+                    </div>
+                `;
+                card.addEventListener('click', () => showModal(item));
+                cardGrid.appendChild(card);
+            });
+        }
+
+        function showModal(item) {
+            modalTitle.textContent = item.title;
+            modalBody.innerHTML = item.details;
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.style.opacity = 1;
+                modalContent.style.transform = 'scale(1)';
+            }, 10);
+        }
+
+        function hideModal() {
+            modal.style.opacity = 0;
+            modalContent.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        modalClose.addEventListener('click', hideModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal();
+            }
+        });
+
+        function setupFilterButtons(containerId) {
+            const container = document.getElementById(containerId);
+            container.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const filterType = containerId.split('-')[0];
+                    filters[filterType] = e.target.dataset.filter;
+
+                    container.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    
+                    renderCards();
+                }
+            });
+        }
+
+        setupFilterButtons('category-filters');
+        setupFilterButtons('suitability-filters');
+        setupFilterButtons('drive-filters');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCards();
+
+            const hikesData = data.filter(d => d.suitability === 'adventurous' && d.category === 'walk');
+            const drivesData = data.filter(d => d.category === 'trip');
+
+            new Chart(document.getElementById('hikesChart'), {
+                type: 'bar',
+                data: {
+                    labels: hikesData.map(h => h.title),
+                    datasets: [{
+                        label: 'Duration (hours)',
+                        data: hikesData.map(h => parseFloat(h.details.match(/Duration:<\/strong> ([\d\.]+) hours/)?.[1] || 0)),
+                        backgroundColor: 'rgba(143, 188, 143, 0.6)',
+                        borderColor: 'rgba(143, 188, 143, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Duration: ${context.raw} hours`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Hours' }
+                        }
+                    }
+                }
+            });
+
+            new Chart(document.getElementById('drivesChart'), {
+                type: 'bar',
+                data: {
+                    labels: drivesData.map(d => d.title),
+                    datasets: [{
+                        label: 'Driving time (minutes)',
+                        data: drivesData.map(d => d.drive),
+                        backgroundColor: 'rgba(238, 221, 202, 0.7)',
+                        borderColor: 'rgba(238, 221, 202, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                         tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Distance: ~${context.raw} min by car`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Minutes' }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
